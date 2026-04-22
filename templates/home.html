@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AniRealm - Home</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+ <nav class="navbar">
+  <div class="nav-brand">AniRealm</div>
+  <div class="nav-links">
+    <a href="/">Home</a>
+    <a href="/journal">Journal</a>
+    <a href="/history">History</a>
+    <a href="/watchlist">Watchlist</a>
+    <a href="/mood">Mood</a>
+    <a href="/clash">Clash</a>
+    <a href="/leaderboard">Leaderboard</a>
+    <a href="/feed">Feed</a>
+    <a href="/about">About</a>
+    {% if current_user.is_authenticated %}
+      <a href="/profile">Profile</a>
+      <a href="/logout" class="nav-btn">Logout</a>
+    {% else %}
+      <a href="/login">Login</a>
+      <a href="/signup" class="nav-btn">Sign Up</a>
+    {% endif %}
+  </div>
+</nav>
+
+  <header class="hero">
+    <div class="container">
+      <h1>AniRealm</h1>
+      <p>Your anime journal — powered by AI sentiment analysis</p>
+      {% if current_user.is_authenticated %}
+        <a class="hero-btn" href="/journal">Write a Journal Entry</a>
+      {% else %}
+        <a class="hero-btn" href="/signup">Get Started Free</a>
+      {% endif %}
+    </div>
+  </header>
+
+  <main class="container page-space">
+
+    {% if current_user.is_authenticated %}
+    <div class="card" style="background: linear-gradient(135deg, #f8f0ff, #ede6ff); border: none;">
+      <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px;">
+        <div>
+          <h2 style="margin-bottom:4px;">Welcome back, {{ current_user.username }} 👋</h2>
+          <p style="color:#666;">You have <strong style="color:#764ba2;">{{ current_user.loyalty_points }} loyalty points</strong> — keep journaling to level up!</p>
+        </div>
+        <a href="/profile" class="hero-btn" style="font-size:0.9rem; padding:10px 24px;">View Profile</a>
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="card">
+      <h2>What is AniRealm?</h2>
+      <p style="color:#555; line-height:1.8;">
+        AniRealm is an anime journaling platform where you write reflections on episodes you've watched.
+        Our system automatically analyses the sentiment of your reflection using three different AI models —
+        VADER, TextBlob, and a transformer-based deep learning model — and compares their results side by side.
+      </p>
+    </div>
+
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon">📓</div>
+        <h3>Journal Entries</h3>
+        <p>Write reflections on anime episodes and rate them from 1 to 5.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🤖</div>
+        <h3>3 AI Models</h3>
+        <p>VADER, TextBlob, and DistilBERT analyse your reflection and compare results.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">📊</div>
+        <h3>Model Evaluation</h3>
+        <p>See accuracy, precision, recall and F1-score for each model.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">👑</div>
+        <h3>Loyalty Points</h3>
+        <p>Earn points for every entry and build your trust level over time.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🔒</div>
+        <h3>Secure Accounts</h3>
+        <p>Login and signup with password hashing and session security.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🔍</div>
+        <h3>Search & Filter</h3>
+        <p>Search your journal history by anime title or sentiment result.</p>
+      </div>
+    </div>
+
+  </main>
+
+  <footer>
+    <div class="container">
+      AniRealm &copy; 2024 — Anime Sentiment Journal
+    </div>
+  </footer>
+
+</body>
+</html>

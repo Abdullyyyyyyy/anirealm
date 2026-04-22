@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Watchlist - AniRealm</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-brand">AniRealm</div>
+    <div class="nav-links">
+      <a href="/">Home</a>
+      <a href="/journal">Journal</a>
+      <a href="/history">History</a>
+      <a href="/watchlist" class="active">Watchlist</a>
+      <a href="/mood">Mood</a>
+      <a href="/clash">Clash</a>
+      <a href="/leaderboard">Leaderboard</a>
+      <a href="/feed">Feed</a>
+      <a href="/profile">Profile</a>
+      <a href="/logout" class="nav-btn">Logout</a>
+    </div>
+  </nav>
+
+  <main class="container page-space">
+
+    <div class="card">
+      <h2>🎬 My Watchlist</h2>
+      <p style="color:#666; margin-bottom:20px;">Track anime you are watching, completed, or plan to watch.</p>
+
+      <label for="watchlistSearch">Search Anime to Add</label>
+      <div style="display:flex; gap:10px;">
+        <input id="watchlistSearch" type="text" placeholder="e.g. Naruto" style="margin-bottom:0;" />
+        <button id="searchAnimeBtn" style="white-space:nowrap;">Search</button>
+      </div>
+
+      <div id="searchResults" style="margin-top:12px;"></div>
+    </div>
+
+    <div class="card">
+      <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:20px;">
+        <button class="filter-btn active-filter" onclick="filterWatchlist('')">All</button>
+        <button class="filter-btn" onclick="filterWatchlist('Watching')" style="background:linear-gradient(135deg,#43e97b,#38f9d7);">Watching</button>
+        <button class="filter-btn" onclick="filterWatchlist('Completed')" style="background:linear-gradient(135deg,#667eea,#764ba2);">Completed</button>
+        <button class="filter-btn" onclick="filterWatchlist('Plan to Watch')" style="background:linear-gradient(135deg,#f093fb,#f5576c);">Plan to Watch</button>
+      </div>
+      <div id="watchlistGrid" class="history-grid"></div>
+    </div>
+
+  </main>
+
+  <footer><div class="container">AniRealm &copy; 2024 — Anime Sentiment Journal</div></footer>
+
+  <script>
+    let currentFilter = "";
+
+    async function filterWatchlist(status) {
+      currentFilter = status;
+      document.querySelectorAll(".filter-btn").forEach(b => b.classList.remove("active-filter"));
+      event.target.classList.add("active-filter");
+      await loadWatchlist(status);
+    }
+
+    async function loadWatchlist(status = "") {
+      const grid = document.getElementById("watchlistGrid");
+      grid.innerHTML = "<p style='color:#888;'>Loading...</p>";
+
+      const url = status ? `/api/watchlist?status=${encodeURIComponent(status)}` : "/api/watchlist";
+      const res = await fetch(url);
+      const data = await res.json();
+
+      if (data.length === 0) {
+        grid.innerHTML = `
+          <div style="text-align:center; padding:40px; color:#888; grid-column:1/-1;">
+            <div style="font-size:3rem;">🎬</div>
+            <p>No anime here yet. Search above to add some!</p>
+          </div>`;
+        return;
+      }
+
+      grid.innerHTML = "";
+      data.forEach(entry => {
+        const card = document.createElement("div");
+        card.className = "entry-card";
+
+        const progress = entry.anime_episodes
+          ? Math.round((entry.episodes_watched / entry.anime_episodes) * 100)
+          : null;
+
+        const statusColor = {
+          "Watching": "#43e97b",
+          "Completed": "#667eea",
+          "Plan to Watch": "#f5576c"
+        }[entry.status] || "#888";
+
+        card.innerHTML = `
+          ${entry.anime_image
+            ? `<img src="${entry.anime_image}" alt="${entry.anime_title}"
+                style="width:100%; height:160px; object-fit:cover; border-radius:12px; margin-bottom:12px;">`
+            : `<div style="width:100%; height:160px; background:#f0e6ff; border-radius:12px; margin-bottom:12px;
+                display:flex; align-items:center; justify-content:center; font-size:2rem;">🎬</div>`
+          }
+          <h3>${entry.anime_title}</h3>
+          <span class="badge" style="background:${statusColor}20; color:${statusColor}; margin-bottom:10px;">
+            ${entry.status}
+          </span>
+
+          ${progress !== null ? `
+            <div style="margin:10px 0;">
+              <div style="display:flex; justify-content:space-between; font-size:0.8rem; color:#888; margin-bottom:4px;">
+                <span>Progress</span>
+                <span>${entry.episodes_watched} / ${entry.anime_episodes} eps (${progress}%)</span>
+              </div>
+              <div style="background:#f0e6ff; border-radius:10px; height:8px;">
+                <div style="background:linear-gradient(135deg,#667eea,#764ba2); height:100%;
+                  border-radius:10px; width:${progress}%;"></div>
+              </div>
+            </div>` : `
+            <p style="font-size:0.85rem; color:#888;">Episodes watched: ${entry.episodes_watched}</p>`
+          }
+
+          ${entry.score ? `<p style="color:#f6a623; font-weight:700;">★ ${entry.score}/10</p>` : ""}
+          ${entry.notes ? `<p style="font-style:italic; color:#666; font-size:0.85rem;">"${entry.notes}"</p>` : ""}
+
+          <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:12px;">
+            <select onchange="updateStatus(${entry.id}, this.value)"
+              style="flex:1; padding:8px; border-radius:8px; border:2px solid #e0e0f0; font-size:0.85rem; margin-bottom:0;">
+              <option ${entry.status === 'Plan to Watch' ? 'selected' : ''}>Plan to Watch</option>
+              <option ${entry.status === 'Watching' ? 'selected' : ''}>Watching</option>
+              <option ${entry.status === 'Completed' ? 'selected' : ''}>Completed</option>
+            </select>
+            <button onclick="removeFromWatchlist(${entry.id})" class="danger"
+              style="padding:8px 14px; font-size:0.85rem;">Remove</button>
+          </div>
+
+          <div style="display:flex; gap:8px; margin-top:8px;">
+            <input type="number" id="eps_${entry.id}" placeholder="Episodes watched"
+              value="${entry.episodes_watched}" min="0"
+              style="flex:1; padding:8px; border-radius:8px; border:2px solid #e0e0f0; font-size:0.85rem; margin-bottom:0;" />
+            <button onclick="updateEpisodes(${entry.id})"
+              style="padding:8px 14px; font-size:0.85rem;">Save</button>
+          </div>
+        `;
+        grid.appendChild(card);
+      });
+    }
+
+    async function searchAnime() {
+      const query = document.getElementById("watchlistSearch").value.trim();
+      if (!query) return;
+
+      const resultsDiv = document.getElementById("searchResults");
+      resultsDiv.innerHTML = "<p style='color:#888;'>Searching...</p>";
+
+      const res = await fetch(`/api/anime/search?q=${encodeURIComponent(query)}`);
+      const data = await res.json();
+
+      if (data.length === 0) {
+        resultsDiv.innerHTML = "<p style='color:#888;'>No results found.</p>";
+        return;
+      }
+
+      resultsDiv.innerHTML = "";
+      const grid = document.createElement("div");
+      grid.style.cssText = "display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:12px; margin-top:12px;";
+
+      data.forEach(anime => {
+        const card = document.createElement("div");
+        card.style.cssText = "background:#f8f0ff; border-radius:12px; padding:12px; cursor:pointer; border:2px solid transparent; transition:all 0.2s;";
+        card.innerHTML = `
+          <img src="${anime.image}" alt="${anime.title}"
+            style="width:100%; height:120px; object-fit:cover; border-radius:8px; margin-bottom:8px;">
+          <p style="font-weight:700; font-size:0.85rem; color:#764ba2; margin-bottom:4px;">${anime.title}</p>
+          <p style="font-size:0.75rem; color:#888;">${anime.episodes ? anime.episodes + ' eps' : 'Unknown eps'}</p>
+          <button onclick="addToWatchlist('${anime.title.replace(/'/g, "\\'")}', '${anime.image}', ${anime.episodes || 0})"
+            style="width:100%; margin-top:8px; padding:6px; font-size:0.8rem;">+ Add</button>
+        `;
+        grid.appendChild(card);
+      });
+
+      resultsDiv.appendChild(grid);
+    }
+
+    async function addToWatchlist(title, image, episodes) {
+      const res = await fetch("/api/watchlist", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+          anime_title: title,
+          status: "Plan to Watch",
+          episodes_watched: 0
+        })
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        document.getElementById("searchResults").innerHTML =
+          `<p style="color:#1a7a4a; font-weight:700;">✓ ${title} added to watchlist!</p>`;
+        loadWatchlist(currentFilter);
+      } else {
+        document.getElementById("searchResults").innerHTML =
+          `<p style="color:#c0392b;">${data.error}</p>`;
+      }
+    }
+
+    async function updateStatus(id, status) {
+      await fetch(`/api/watchlist/${id}`, {
+        method: "PUT",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({status})
+      });
+      loadWatchlist(currentFilter);
+    }
+
+    async function updateEpisodes(id) {
+      const eps = parseInt(document.getElementById(`eps_${id}`).value, 10);
+      await fetch(`/api/watchlist/${id}`, {
+        method: "PUT",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({episodes_watched: eps})
+      });
+      loadWatchlist(currentFilter);
+    }
+
+    async function removeFromWatchlist(id) {
+      if (!confirm("Remove from watchlist?")) return;
+      await fetch(`/api/watchlist/${id}`, {method: "DELETE"});
+      loadWatchlist(currentFilter);
+    }
+
+    document.getElementById("searchAnimeBtn").addEventListener("click", searchAnime);
+    document.getElementById("watchlistSearch").addEventListener("keypress", e => {
+      if (e.key === "Enter") searchAnime();
+    });
+
+    loadWatchlist();
+  </script>
+</body>
+</html>

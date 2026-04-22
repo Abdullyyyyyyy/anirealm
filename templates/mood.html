@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Mood Tracker - AniRealm</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-brand">AniRealm</div>
+    <div class="nav-links">
+      <a href="/">Home</a>
+      <a href="/journal">Journal</a>
+      <a href="/history">History</a>
+      <a href="/watchlist">Watchlist</a>
+      <a href="/mood" class="active">Mood</a>
+      <a href="/clash">Clash</a>
+      <a href="/leaderboard">Leaderboard</a>
+      <a href="/feed">Feed</a>
+      <a href="/profile">Profile</a>
+      <a href="/logout" class="nav-btn">Logout</a>
+    </div>
+  </nav>
+
+  <main class="container page-space">
+
+    <div class="card" style="background:linear-gradient(135deg,#f093fb,#f5576c); border:none;">
+      <div style="text-align:center; padding:20px 0;">
+        <h1 style="font-family:'Bangers',cursive; font-size:3rem; color:white;
+          letter-spacing:3px; margin-bottom:8px;">💜 Mood Tracker</h1>
+        <p style="color:rgba(255,255,255,0.9); font-size:1.1rem;">
+          Your emotional journey through anime
+        </p>
+      </div>
+    </div>
+
+    <div id="moodStats" class="stats-grid"></div>
+
+    <div class="card">
+      <h2>Sentiment Over Time</h2>
+      <p style="color:#666; margin-bottom:16px;">
+        Average sentiment score across all three models per journal entry.
+      </p>
+      <div style="position:relative; width:100%; height:300px;">
+        <canvas id="moodChart"></canvas>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Sentiment Breakdown</h2>
+      <p style="color:#666; margin-bottom:16px;">
+        Distribution of positive, neutral and negative entries.
+      </p>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; align-items:center;">
+        <div style="position:relative; height:250px;">
+          <canvas id="pieChart"></canvas>
+        </div>
+        <div id="pieLegend"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Top Anime by Sentiment</h2>
+      <p style="color:#666; margin-bottom:16px;">
+        Which anime made you feel most positive on average.
+      </p>
+      <div style="position:relative; width:100%; height:300px;">
+        <canvas id="animeChart"></canvas>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Recent Mood Entries</h2>
+      <div id="moodList" class="history-grid"></div>
+    </div>
+
+  </main>
+
+  <footer><div class="container">AniRealm &copy; 2024 — Anime Sentiment Journal</div></footer>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+  <script>
+    async function loadMood() {
+      const res = await fetch("/api/mood");
+      const data = await res.json();
+
+      if (data.message) {
+        document.getElementById("moodStats").innerHTML = `
+          <div style="grid-column:1/-1; text-align:center; padding:40px; color:#888;">
+            <div style="font-size:3rem;">💜</div>
+            <p>No journal entries yet.
+              <a href="/journal" style="color:#764ba2; font-weight:700;">
+                Write your first entry!
+              </a>
+            </p>
+          </div>`;
+        return;
+      }
+
+      const entries = data.mood_data;
+      const counts = data.sentiment_counts;
+      const total = entries.length;
+      const avgScore = entries.length
+        ? (entries.reduce((s, e) => s + e.avg_score, 0) / entries.length).toFixed(3)
+        : 0;
+
+      const dominantSentiment = Object.entries(counts)
+        .sort((a, b) => b[1] - a[1])[0][0];
+
+      const moodEmoji = {
+        "Positive": "😊", "Neutral": "😐", "Negative": "😔"
+      };
+
+      document.getElementById("moodStats").innerHTML = `
+        <div class="stat-card">
+          <div class="stat-number">${total}</div>
+          <div class="stat-label">Total Entries</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number">${avgScore}</div>
+          <div class="stat-label">Avg Sentiment Score</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number">${moodEmoji[dominantSentiment]}</div>
+          <div class="stat-label">Dominant Mood</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number">${Object.keys(data.top_anime).length}</div>
+          <div class="stat-label">Anime Tracked</div>
+        </div>
+      `;
+
+      // Mood line chart
+      new Chart(document.getElementById("moodChart"), {
+        type: "line",
+        data: {
+          labels: entries.map(e => `${e.anime_title} Ep`),
+          datasets: [
+            {
+              label: "Avg Score",
+              data: entries.map(e => e.avg_score),
+              borderColor: "#764ba2",
+              backgroundColor: "rgba(118,75,162,0.1)",
+              fill: true,
+              tension: 0.4,
+              pointRadius: 5,
+              pointBackgroundColor: entries.map(e =>
+                e.label === "Positive" ? "#22c55e" :
+                e.label === "Negative" ? "#ef4444" : "#f6a623"
+              ),
+              borderWidth: 2
+            },
+            {
+              label: "VADER",
+              data: entries.map(e => e.vader_score),
+              borderColor: "#667eea",
+              borderDash: [5, 3],
+              fill: false,
+              tension: 0.4,
+              pointRadius: 3,
+              borderWidth: 1.5
+            },
+            {
+              label: "TextBlob",
+              data: entries.map(e => e.textblob_score),
+              borderColor: "#f093fb",
+              borderDash: [5, 3],
+              fill: false,
+              tension: 0.4,
+              pointRadius: 3,
+              borderWidth: 1.5
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {legend: {display: false}},
+          scales: {
+            y: {
+              min: -1, max: 1,
+              ticks: {callback: v => v.toFixed(1)},
+              grid: {color: "rgba(130,130,130,0.1)"}
+            },
+            x: {
+              ticks: {autoSkip: true, maxTicksLimit: 8},
+              grid: {display: false}
+            }
+          }
+        }
+      });
+
+      // Pie chart
+      const pieColors = ["#22c55e", "#f6a623", "#ef4444"];
+      new Chart(document.getElementById("pieChart"), {
+        type: "doughnut",
+        data: {
+          labels: ["Positive", "Neutral", "Negative"],
+          datasets: [{
+            data: [
+              counts.Positive || 0,
+              counts.Neutral || 0,
+              counts.Negative || 0
+            ],
+            backgroundColor: pieColors,
+            borderWidth: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {legend: {display: false}}
+        }
+      });
+
+      document.getElementById("pieLegend").innerHTML = `
+        <div style="display:flex; flex-direction:column; gap:12px;">
+          ${["Positive", "Neutral", "Negative"].map((label, i) => `
+            <div style="display:flex; align-items:center; gap:10px;">
+              <div style="width:14px; height:14px; border-radius:3px;
+                background:${pieColors[i]};"></div>
+              <span style="font-weight:700; color:#444;">${label}</span>
+              <span style="color:#888; margin-left:auto;">
+                ${counts[label] || 0} entries
+              </span>
+            </div>
+          `).join("")}
+        </div>
+      `;
+
+      // Top anime bar chart
+      const animeLabels = Object.keys(data.top_anime).slice(0, 8);
+      const animeScores = animeLabels.map(k => data.top_anime[k]);
+
+      new Chart(document.getElementById("animeChart"), {
+        type: "bar",
+        data: {
+          labels: animeLabels,
+          datasets: [{
+            label: "Avg Sentiment",
+            data: animeScores,
+            backgroundColor: animeScores.map(s =>
+              s >= 0.05 ? "rgba(34,197,94,0.7)" :
+              s <= -0.05 ? "rgba(239,68,68,0.7)" :
+              "rgba(246,166,35,0.7)"
+            ),
+            borderRadius: 8,
+            borderWidth: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {legend: {display: false}},
+          scales: {
+            y: {
+              min: -1, max: 1,
+              ticks: {callback: v => v.toFixed(1)},
+              grid: {color: "rgba(130,130,130,0.1)"}
+            },
+            x: {
+              ticks: {autoSkip: false, maxRotation: 30},
+              grid: {display: false}
+            }
+          }
+        }
+      });
+
+      // Recent mood list
+      const list = document.getElementById("moodList");
+      list.innerHTML = "";
+      entries.slice().reverse().slice(0, 6).forEach(e => {
+        const card = document.createElement("div");
+        card.className = "entry-card";
+        const color = e.label === "Positive" ? "#22c55e" :
+          e.label === "Negative" ? "#ef4444" : "#f6a623";
+        card.innerHTML = `
+          <h3>${e.anime_title}</h3>
+          <p style="color:#888; font-size:0.85rem; margin-bottom:8px;">${e.date}</p>
+          <span class="badge" style="background:${color}20; color:${color};">
+            ${e.label}
+          </span>
+          <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;
+            font-size:0.8rem; color:#888;">
+            <span>VADER: ${e.vader_score}</span>
+            <span>TextBlob: ${e.textblob_score}</span>
+            <span>BERT: ${e.transformer_score}</span>
+          </div>
+          <div style="margin-top:8px;">
+            <div style="background:#f0e6ff; border-radius:6px; height:8px;">
+              <div style="background:${color}; height:100%; border-radius:6px;
+                width:${Math.round(((e.avg_score + 1) / 2) * 100)}%;"></div>
+            </div>
+            <p style="font-size:0.75rem; color:#888; margin-top:4px;">
+              Avg score: ${e.avg_score}
+            </p>
+          </div>
+        `;
+        list.appendChild(card);
+      });
+    }
+
+    loadMood();
+  </script>
+</body>
+</html>

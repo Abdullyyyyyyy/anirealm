@@ -1,0 +1,10 @@
+Flask
+Flask-SQLAlchemy
+Flask-Login
+Flask-WTF
+vaderSentiment
+textblob
+scikit-learn
+transformers
+torch
+Werkzeug

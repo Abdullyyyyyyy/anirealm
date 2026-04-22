@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Community Feed - AniRealm</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-brand">AniRealm</div>
+    <div class="nav-links">
+      <a href="/">Home</a>
+      <a href="/journal">Journal</a>
+      <a href="/history">History</a>
+      <a href="/watchlist">Watchlist</a>
+      <a href="/mood">Mood</a>
+      <a href="/clash">Clash</a>
+      <a href="/leaderboard">Leaderboard</a>
+      <a href="/feed" class="active">Feed</a>
+      <a href="/profile">Profile</a>
+      {% if current_user.is_authenticated %}
+        <a href="/logout" class="nav-btn">Logout</a>
+      {% else %}
+        <a href="/login" class="nav-btn">Login</a>
+      {% endif %}
+    </div>
+  </nav>
+
+  <main class="container page-space">
+
+    <div class="card" style="background:linear-gradient(135deg,#43e97b,#38f9d7); border:none;">
+      <div style="text-align:center; padding:20px 0;">
+        <h1 style="font-family:'Bangers',cursive; font-size:3rem; color:white;
+          letter-spacing:3px; margin-bottom:8px;">🌍 Community Feed</h1>
+        <p style="color:rgba(255,255,255,0.9); font-size:1.1rem;">
+          Top journal entries from the AniRealm community
+        </p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+        <input id="feedSearch" type="text" placeholder="Search by anime title..."
+          style="flex:1; margin-bottom:0; min-width:200px;" />
+        <select id="feedFilter" style="margin-bottom:0; width:auto;">
+          <option value="">All Sentiments</option>
+          <option value="Positive">Positive</option>
+          <option value="Neutral">Neutral</option>
+          <option value="Negative">Negative</option>
+        </select>
+        <select id="trustFilter" style="margin-bottom:0; width:auto;">
+          <option value="">All Trust Levels</option>
+          <option value="Elite Recommender">Elite Recommender</option>
+          <option value="Trusted Fan">Trusted Fan</option>
+          <option value="Regular Reviewer">Regular Reviewer</option>
+          <option value="New User">New User</option>
+        </select>
+        <button id="applyFilter">Filter</button>
+      </div>
+    </div>
+
+    <div id="feedStats" class="stats-grid" style="margin-bottom:24px;"></div>
+
+    <div id="feedGrid" class="history-grid"></div>
+
+    <div id="loadMoreContainer" style="text-align:center; margin-top:24px;"></div>
+
+  </main>
+
+  <footer><div class="container">AniRealm &copy; 2024 — Anime Sentiment Journal</div></footer>
+
+  <script>
+    let allEntries = [];
+    let isLoggedIn = false;
+
+    function sentimentBadge(label) {
+      const cls = label ? label.toLowerCase() : "neutral";
+      return `<span class="badge ${cls}">${label || "N/A"}</span>`;
+    }
+
+    function getTrustClass(level) {
+      const map = {
+        "New User": "trust-new",
+        "Regular Reviewer": "trust-regular",
+        "Trusted Fan": "trust-fan",
+        "Elite Recommender": "trust-elite"
+      };
+      return map[level] || "trust-new";
+    }
+
+    function starRating(rating) {
+      return "★".repeat(rating) + "☆".repeat(5 - rating);
+    }
+
+    function timeAgo(dateStr) {
+      const diff = Date.now() - new Date(dateStr).getTime();
+      const mins = Math.floor(diff / 60000);
+      const hours = Math.floor(mins / 60);
+      const days = Math.floor(hours / 24);
+      if (days > 0) return `${days}d ago`;
+      if (hours > 0) return `${hours}h ago`;
+      if (mins > 0) return `${mins}m ago`;
+      return "Just now";
+    }
+
+    async function checkAuth() {
+      try {
+        const res = await fetch("/api/profile");
+        isLoggedIn = res.ok;
+      } catch {
+        isLoggedIn = false;
+      }
+    }
+
+    async function loadFeed() {
+      const res = await fetch("/api/feed");
+      allEntries = await res.json();
+
+      const total = allEntries.length;
+      const positive = allEntries.filter(e => e.vader_label === "Positive").length;
+      const topVoted = allEntries.reduce((max, e) =>
+        e.helpful_votes > (max.helpful_votes || 0) ? e : max, {});
+
+      document.getElementById("feedStats").innerHTML = `
+        <div class="stat-card">
+          <div class="stat-number">${total}</div>
+          <div class="stat-label">Total Reviews</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number">${total ? Math.round((positive / total) * 100) : 0}%</div>
+          <div class="stat-label">Positive Reviews</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number">${topVoted.helpful_votes || 0}</div>
+          <div class="stat-label">Most Helpful Votes</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number">${new Set(allEntries.map(e => e.anime_title)).size}</div>
+          <div class="stat-label">Anime Reviewed</div>
+        </div>
+      `;
+
+      renderFeed(allEntries);
+    }
+
+    function renderFeed(entries) {
+      const grid = document.getElementById("feedGrid");
+      grid.innerHTML = "";
+
+      if (entries.length === 0) {
+        grid.innerHTML = `
+          <div style="grid-column:1/-1; text-align:center; padding:40px; color:#888;">
+            <div style="font-size:3rem;">🌍</div>
+            <p>No entries found matching your filters.</p>
+          </div>`;
+        return;
+      }
+
+      entries.forEach(entry => {
+        const card = document.createElement("div");
+        card.className = "entry-card";
+
+        const allAgree = entry.vader_label === entry.textblob_label &&
+          entry.textblob_label === entry.transformer_label;
+
+        const initials = (entry.username || "??").slice(0, 2).toUpperCase();
+
+        card.innerHTML = `
+          <div style="display:flex; align-items:center; gap:10px; margin-bottom:14px;">
+            <div style="width:38px; height:38px; border-radius:50%;
+              background:linear-gradient(135deg,#667eea,#764ba2);
+              display:flex; align-items:center; justify-content:center;
+              font-family:'Bangers',cursive; font-size:0.95rem;
+              color:white; flex-shrink:0;">
+              ${initials}
+            </div>
+            <div style="flex:1; min-width:0;">
+              <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                <span style="font-weight:700; font-size:0.95rem; color:#1a1a2e;">
+                  ${entry.username || "Anonymous"}
+                </span>
+                <span class="trust-badge ${getTrustClass(entry.trust_level)}"
+                  style="font-size:0.7rem; padding:2px 8px;">
+                  ${entry.trust_level}
+                </span>
+              </div>
+              <span style="font-size:0.75rem; color:#888;">
+                ${timeAgo(entry.created_at)}
+              </span>
+            </div>
+            ${entry.helpful_votes > 0 ? `
+              <div style="background:#f0e6ff; border-radius:10px;
+                padding:4px 10px; font-size:0.8rem; color:#764ba2; font-weight:700;">
+                👍 ${entry.helpful_votes}
+              </div>` : ""}
+          </div>
+
+          <h3 style="margin-bottom:4px;">${entry.anime_title}</h3>
+          <p style="color:#888; font-size:0.85rem; margin-bottom:10px;">
+            Episode ${entry.episode} •
+            <span style="color:#f6a623;">${starRating(entry.rating)}</span>
+          </p>
+
+          <p style="font-style:italic; color:#555; font-size:0.9rem;
+            margin-bottom:14px; line-height:1.6;">
+            "${entry.reflection_text}"
+          </p>
+
+          <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px;">
+            <span style="font-size:0.8rem; color:#888;">VADER:</span>
+            ${sentimentBadge(entry.vader_label)}
+            <span style="font-size:0.8rem; color:#888; margin-left:4px;">TextBlob:</span>
+            ${sentimentBadge(entry.textblob_label)}
+            <span style="font-size:0.8rem; color:#888; margin-left:4px;">BERT:</span>
+            ${sentimentBadge(entry.transformer_label)}
+          </div>
+
+          ${allAgree ? `
+            <div style="background:#e6fff0; border-radius:8px; padding:6px 12px;
+              font-size:0.8rem; color:#1a7a4a; font-weight:700; margin-bottom:10px;">
+              ✓ All models agree
+            </div>` : ""}
+
+          ${isLoggedIn ? `
+            <button onclick="voteEntry(${entry.id}, this)"
+              style="background:linear-gradient(135deg,#667eea,#764ba2);
+              font-size:0.85rem; padding:8px 16px; margin-top:4px;">
+              👍 Helpful (${entry.helpful_votes})
+            </button>` : `
+            <a href="/login" style="font-size:0.85rem; color:#764ba2;
+              font-weight:700;">Login to vote</a>`
+          }
+        `;
+
+        grid.appendChild(card);
+      });
+    }
+
+    async function voteEntry(id, btn) {
+      const res = await fetch(`/api/journal/${id}/vote`, {method: "POST"});
+      const data = await res.json();
+
+      if (res.ok) {
+        btn.textContent = `👍 Helpful (${data.votes})`;
+        if (data.message === "Vote added") {
+          btn.style.background = "linear-gradient(135deg,#43e97b,#38f9d7)";
+        } else {
+          btn.style.background = "linear-gradient(135deg,#667eea,#764ba2)";
+        }
+      } else {
+        alert(data.error || "Could not vote.");
+      }
+    }
+
+    function applyFilters() {
+      const search = document.getElementById("feedSearch").value.trim().toLowerCase();
+      const sentiment = document.getElementById("feedFilter").value;
+      const trust = document.getElementById("trustFilter").value;
+
+      let filtered = allEntries;
+
+      if (search) {
+        filtered = filtered.filter(e =>
+          e.anime_title.toLowerCase().includes(search) ||
+          e.reflection_text.toLowerCase().includes(search)
+        );
+      }
+
+      if (sentiment) {
+        filtered = filtered.filter(e => e.vader_label === sentiment);
+      }
+
+      if (trust) {
+        filtered = filtered.filter(e => e.trust_level === trust);
+      }
+
+      renderFeed(filtered);
+    }
+
+    document.getElementById("applyFilter").addEventListener("click", applyFilters);
+    document.getElementById("feedSearch").addEventListener("keypress", e => {
+      if (e.key === "Enter") applyFilters();
+    });
+    document.getElementById("feedFilter").addEventListener("change", applyFilters);
+    document.getElementById("trustFilter").addEventListener("change", applyFilters);
+
+    checkAuth().then(loadFeed);
+  </script>
+</body>
+</html>

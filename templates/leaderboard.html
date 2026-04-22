@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Leaderboard - AniRealm</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-brand">AniRealm</div>
+    <div class="nav-links">
+      <a href="/">Home</a>
+      <a href="/journal">Journal</a>
+      <a href="/history">History</a>
+      <a href="/watchlist">Watchlist</a>
+      <a href="/mood">Mood</a>
+      <a href="/clash">Clash</a>
+      <a href="/leaderboard" class="active">Leaderboard</a>
+      <a href="/feed">Feed</a>
+      <a href="/profile">Profile</a>
+      {% if current_user.is_authenticated %}
+        <a href="/logout" class="nav-btn">Logout</a>
+      {% else %}
+        <a href="/login" class="nav-btn">Login</a>
+      {% endif %}
+    </div>
+  </nav>
+
+  <main class="container page-space">
+
+    <div class="card" style="background:linear-gradient(135deg,#667eea,#764ba2); border:none;">
+      <div style="text-align:center; padding:20px 0;">
+        <h1 style="font-family:'Bangers',cursive; font-size:3rem; color:white;
+          letter-spacing:3px; margin-bottom:8px;">🏆 Leaderboard</h1>
+        <p style="color:rgba(255,255,255,0.9); font-size:1.1rem;">
+          Top anime reviewers ranked by loyalty points
+        </p>
+        <div id="yourRank" style="margin-top:16px;"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div id="leaderboardContent"></div>
+    </div>
+
+  </main>
+
+  <footer><div class="container">AniRealm &copy; 2024 — Anime Sentiment Journal</div></footer>
+
+  <script>
+    const trustColors = {
+      "Elite Recommender": "linear-gradient(135deg,#f6d365,#fda085)",
+      "Trusted Fan": "linear-gradient(135deg,#764ba2,#667eea)",
+      "Regular Reviewer": "linear-gradient(135deg,#43e97b,#38f9d7)",
+      "New User": "linear-gradient(135deg,#b0b0b0,#d0d0d0)"
+    };
+
+    const rankEmoji = {1: "🥇", 2: "🥈", 3: "🥉"};
+
+    async function loadLeaderboard() {
+      const res = await fetch("/api/leaderboard");
+      const data = await res.json();
+
+      if (data.current_rank) {
+        document.getElementById("yourRank").innerHTML = `
+          <div style="background:rgba(255,255,255,0.2); border-radius:12px;
+            padding:10px 20px; display:inline-block;">
+            <span style="color:white; font-weight:700; font-size:1rem;">
+              Your Rank: #${data.current_rank}
+            </span>
+          </div>`;
+      }
+
+      const content = document.getElementById("leaderboardContent");
+
+      if (data.leaderboard.length === 0) {
+        content.innerHTML = `
+          <div style="text-align:center; padding:40px; color:#888;">
+            <div style="font-size:3rem;">🏆</div>
+            <p>No users yet. Be the first to join!</p>
+          </div>`;
+        return;
+      }
+
+      content.innerHTML = "";
+
+      data.leaderboard.forEach(user => {
+        const isTop3 = user.rank <= 3;
+        const row = document.createElement("div");
+        row.style.cssText = `
+          display:flex; align-items:center; gap:16px; padding:16px;
+          border-radius:16px; margin-bottom:12px;
+          background:${isTop3 ? "linear-gradient(135deg,#f8f0ff,#ede6ff)" : "white"};
+          border:${isTop3 ? "2px solid rgba(118,75,162,0.3)" : "1px solid rgba(102,126,234,0.1)"};
+          transition:transform 0.2s;
+        `;
+
+        row.onmouseenter = () => row.style.transform = "translateX(4px)";
+        row.onmouseleave = () => row.style.transform = "translateX(0)";
+
+        const initials = user.username.slice(0, 2).toUpperCase();
+        const trustGradient = trustColors[user.trust_level] || trustColors["New User"];
+
+        row.innerHTML = `
+          <div style="font-family:'Bangers',cursive; font-size:1.8rem;
+            min-width:50px; text-align:center; color:#764ba2;">
+            ${rankEmoji[user.rank] || `#${user.rank}`}
+          </div>
+
+          <div style="width:48px; height:48px; border-radius:50%;
+            background:${trustGradient}; display:flex; align-items:center;
+            justify-content:center; font-family:'Bangers',cursive;
+            font-size:1.1rem; color:white; flex-shrink:0;">
+            ${initials}
+          </div>
+
+          <div style="flex:1; min-width:0;">
+            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+              <span style="font-weight:800; font-size:1rem; color:#1a1a2e;">
+                ${user.username}
+              </span>
+              <span class="trust-badge ${getTrustClass(user.trust_level)}">
+                ${user.trust_level}
+              </span>
+            </div>
+            <div style="display:flex; gap:16px; margin-top:4px; flex-wrap:wrap;">
+              <span style="font-size:0.8rem; color:#888;">
+                📓 ${user.total_entries} entries
+              </span>
+              <span style="font-size:0.8rem; color:#888;">
+                👍 ${user.total_votes} helpful votes
+              </span>
+              <span style="font-size:0.8rem; color:#888;">
+                📅 Since ${user.member_since}
+              </span>
+            </div>
+          </div>
+
+          <div style="text-align:right; flex-shrink:0;">
+            <div style="font-family:'Bangers',cursive; font-size:1.6rem;
+              color:#764ba2; letter-spacing:1px;">
+              ${user.loyalty_points}
+            </div>
+            <div style="font-size:0.75rem; color:#888; text-transform:uppercase;
+              letter-spacing:0.5px;">pts</div>
+          </div>
+        `;
+
+        content.appendChild(row);
+      });
+    }
+
+    function getTrustClass(level) {
+      const map = {
+        "New User": "trust-new",
+        "Regular Reviewer": "trust-regular",
+        "Trusted Fan": "trust-fan",
+        "Elite Recommender": "trust-elite"
+      };
+      return map[level] || "trust-new";
+    }
+
+    loadLeaderboard();
+  </script>
+</body>
+</html>

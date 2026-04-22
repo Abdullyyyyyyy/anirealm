@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sign Up - AniRealm</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <div class="auth-container">
+    <div class="auth-card">
+      <h1>AniRealm</h1>
+      <p>Create your account and start journaling</p>
+
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          <div class="flash-messages">
+            {% for category, message in messages %}
+              <div class="flash {{ category }}">{{ message }}</div>
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% endwith %}
+
+      <form method="POST">
+        <label for="username">Username</label>
+        <input type="text" id="username" name="username" placeholder="YourUsername" required />
+
+        <label for="email">Email Address</label>
+        <input type="email" id="email" name="email" placeholder="you@example.com" required />
+
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password" placeholder="Min 8 chars, 1 uppercase, 1 number" required />
+
+        <label for="confirm_password">Confirm Password</label>
+        <input type="password" id="confirm_password" name="confirm_password" placeholder="Repeat your password" required />
+
+        <div style="background:#f0e6ff; padding:12px; border-radius:10px; margin-bottom:16px; font-size:0.85rem; color:#764ba2;">
+          Password must be at least 8 characters, include one uppercase letter and one number.
+        </div>
+
+        <button type="submit" style="width:100%;">Create Account</button>
+      </form>
+
+      <div class="auth-footer">
+        Already have an account? <a href="/login">Log in here</a>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>About - AniRealm</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <nav class="navbar">
+  <div class="nav-brand">AniRealm</div>
+  <div class="nav-links">
+    <a href="/">Home</a>
+    <a href="/journal">Journal</a>
+    <a href="/history">History</a>
+    <a href="/watchlist">Watchlist</a>
+    <a href="/mood">Mood</a>
+    <a href="/clash">Clash</a>
+    <a href="/leaderboard">Leaderboard</a>
+    <a href="/feed">Feed</a>
+    <a href="/about">About</a>
+    {% if current_user.is_authenticated %}
+      <a href="/profile">Profile</a>
+      <a href="/logout" class="nav-btn">Logout</a>
+    {% else %}
+      <a href="/login">Login</a>
+      <a href="/signup" class="nav-btn">Sign Up</a>
+    {% endif %}
+  </div>
+</nav>
+
+  <main class="container page-space">
+
+    <div class="card">
+      <h2>About AniRealm</h2>
+      <p style="color:#555; line-height:1.8;">
+        AniRealm is a full-stack web application built with Flask, SQLite, and JavaScript.
+        It allows users to create anime episode journal entries and automatically analyses
+        the emotional tone of their reflections using three different NLP models.
+      </p>
+    </div>
+
+    <div class="card">
+      <h2>Sentiment Models</h2>
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon">📏</div>
+          <h3>VADER</h3>
+          <p>A lexicon and rule-based model designed for social media text. Fast and reliable for short reflections.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">📝</div>
+          <h3>TextBlob</h3>
+          <p>A simple NLP library that calculates polarity and subjectivity scores from text.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🧠</div>
+          <h3>DistilBERT</h3>
+          <p>A transformer-based deep learning model fine-tuned on SST-2. Understands context better than rule-based methods.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Evaluation Metrics</h2>
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon">🎯</div>
+          <h3>Accuracy</h3>
+          <p>The proportion of correct predictions out of all predictions made.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🔬</div>
+          <h3>Precision</h3>
+          <p>How many of the predicted positives were actually correct.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">📡</div>
+          <h3>Recall</h3>
+          <p>How many actual positives were correctly identified by the model.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">⚖️</div>
+          <h3>F1-Score</h3>
+          <p>The balanced average of precision and recall into one score.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Technology Stack</h2>
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon">🐍</div>
+          <h3>Python & Flask</h3>
+          <p>Backend framework handling routes, API logic, and authentication.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🗄️</div>
+          <h3>SQLite & SQLAlchemy</h3>
+          <p>Database storage with ORM model definitions.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🎨</div>
+          <h3>HTML, CSS & JS</h3>
+          <p>Frontend interface with dynamic rendering and Fetch API communication.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🔒</div>
+          <h3>Flask-Login & Werkzeug</h3>
+          <p>Secure user authentication with password hashing and session management.</p>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <footer>
+    <div class="container">AniRealm &copy; 2024 — Anime Sentiment Journal</div>
+  </footer>
+
+</body>
+</html>
